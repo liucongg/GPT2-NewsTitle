@@ -19,9 +19,9 @@ from torch.utils.data import Dataset
 class GPT2NewsTitleDataSet(Dataset):
     def __init__(self, tokenizer, max_len, data_dir, data_set_name, path_file=None, is_overwrite=False):
         self.tokenizer = tokenizer
-        self.content_id = self.tokenizer.convert_tokens_to_ids("[content]")
-        self.title_id = self.tokenizer.convert_tokens_to_ids("[title]")
-        self.space_id = self.tokenizer.convert_tokens_to_ids("[space]")
+        self.content_id = self.tokenizer.convert_tokens_to_ids("[Content]")
+        self.title_id = self.tokenizer.convert_tokens_to_ids("[Title]")
+        self.space_id = self.tokenizer.convert_tokens_to_ids("[Space]")
         self.max_len = max_len
         cached_feature_file = os.path.join(data_dir, "cached_{}_{}".format(data_set_name, max_len))
         if os.path.exists(cached_feature_file) and not is_overwrite:
@@ -56,6 +56,8 @@ class GPT2NewsTitleDataSet(Dataset):
         token_type_ids.extend([self.title_id] * len(title_tokens))
         input_ids.append(self.tokenizer.sep_token_id)
         token_type_ids.append(self.title_id)
+        assert len(input_ids) == token_type_ids
+        assert len(input_ids) <= self.max_len
         return input_ids, token_type_ids
 
     def __len__(self):
@@ -67,4 +69,16 @@ class GPT2NewsTitleDataSet(Dataset):
 
 
 def collate_func(batch_data):
-    return {}
+    batch_size = len(batch_data)
+    if batch_size == 0:
+        return {}
+    input_ids_list, token_type_ids_list = [], []
+    max_len = max([len(instance["input_ids"]) for instance in batch_data])
+    for instance in batch_data:
+        input_ids_temp = instance["input_ids"].extend([0]*(max_len-len(instance["input_ids"])))
+        token_type_ids_temp = instance["token_type_ids"].extend([0] * (max_len - len(instance["token_type_ids"])))
+        input_ids_list.append(torch.tensor(input_ids_temp, dtype=torch.long))
+        token_type_ids_list.append(torch.tensor(token_type_ids_temp, dtype=torch.long))
+    return {"input_ids": input_ids_list,
+            "token_type_ids": token_type_ids_list}
+
