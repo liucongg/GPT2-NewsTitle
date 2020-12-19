@@ -9,7 +9,6 @@
     通过新闻正文生成新闻标题的GPT2模型的训练文件
 """
 
-import transformers
 import torch
 import os
 import json
@@ -17,233 +16,122 @@ import random
 import numpy as np
 import argparse
 from torch.utils.tensorboard import SummaryWriter
-from datetime import datetime
-from tqdm import tqdm
-from torch.nn import DataParallel
 import logging
 from transformers.modeling_gpt2 import GPT2Config
 from model import GPT2LMHeadModel
 from transformers import BertTokenizer
-from os.path import join, exists
-from itertools import zip_longest, chain
-from data_set import GPT2NewsTitleDataSet
-from torch.utils.data import Dataset, DataLoader
-from torch.nn import CrossEntropyLoss
-from sklearn.model_selection import train_test_split
+from data_set import GPT2NewsTitleDataSet, collate_func
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
+from transformers import AdamW, get_linear_schedule_with_warmup
+from tqdm import tqdm, trange
 
 
-def setup_train_args():
-    """
-    设置训练参数
-    """
+def train(model, device, train_data, test_data, args):
+    tb_write = SummaryWriter()
+    if args.gradient_accumulation_steps < 1:
+        raise ValueError("gradient_accumulation_steps参数无效，必须大于等于1")
+    train_batch_size = int(args.train_batch_size / args.gradient_accumulation_steps)
+    train_sampler = RandomSampler(train_data)
+    train_data_loader = DataLoader(train_data, sampler=train_sampler,
+                                   batch_size=train_batch_size, collate_fn=collate_func)
+    total_steps = int(len(train_data_loader) * args.num_train_epochs / args.gradient_accumulation_steps)
+    model.to(device)
+    param_optimizer = list(model.named_parameters())
+    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if not any(
+            nd in n for nd in no_decay)], 'weight_decay': 0.01},
+        {'params': [p for n, p in param_optimizer if any(
+            nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    ]
+    optimizer = AdamW(optimizer_grouped_parameters,
+                      lr=args.learning_rate, eps=args.adam_epsilon)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=int(args.warmup_proportion * total_steps),
+                                                num_training_steps=total_steps)
+    torch.cuda.empty_cache()
+
+    model.train()
+    title_id = train_data.title_id
+    tr_loss, logging_loss, min_loss = 0.0, 0.0, 0.0
+    global_step = 0
+    for iepoch in trange(0, int(args.num_train_epochs) + 1, desc="Epoch", disable=False):
+        iter_bar = tqdm(train_data_loader, desc="Iter (loss=X.XXX)", disable=False)
+        for step, batch in enumerate(iter_bar):
+            input_ids = batch["input_ids"].to(device)
+            token_type_ids = batch["token_type_ids"].to(device)
+            outputs = model.forward(input_ids=input_ids, token_type_ids=token_type_ids, labels=input_ids, title_id=title_id)
+            loss = outputs[0]
+            tr_loss += loss.item()
+            iter_bar.set_description("Iter (loss=%5.3f)" % loss.item())
+            if args.gradient_accumulation_steps > 1:
+                loss = loss / args.gradient_accumulation_steps
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+            if (step + 1) % args.gradient_accumulation_steps == 0:
+                optimizer.step()
+                scheduler.step()
+                optimizer.zero_grad()
+                global_step += 1
+                if args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                    tb_write.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                    tb_write.add_scalar("train_loss", (tr_loss-logging_loss) /
+                                        (args.logging_steps*args.gradient_accumulation_steps), global_step)
+                if args.eval_steps > 0 and global_step % args.eval_steps == 0:
+                    eval_loss = evaluate(model, device, test_data, args)
+                    tb_write.add_scalar("test_loss", eval_loss, global_step)
+                    model.train()
+        output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
+        model_to_save = model.module if hasattr(model, "module") else model
+        model_to_save.save_pretrained(output_dir)
+
+
+def evaluate(model, device, test_data, args):
+    test_sampler = SequentialSampler(test_data)
+    test_data_loader = DataLoader(test_data, sampler=test_sampler,
+                                  batch_size=args.test_batch_size, collate_fn=collate_func)
+    iter_bar = tqdm(test_data_loader, desc="iter", disable=False)
+    title_id = test_data.title_id
+    total_loss, total = 0.0, 0.0
+    for step, batch in enumerate(iter_bar):
+        model.eval()
+        with torch.no_grad():
+            input_ids = batch["input_ids"].to(device)
+            token_type_ids = batch["token_type_ids"].to(device)
+            outputs = model.forward(input_ids=input_ids, token_type_ids=token_type_ids, labels=input_ids, title_id=title_id)
+            loss = outputs[0]
+            loss = loss.item()
+            total_loss += loss*len(batch["input_ids"])
+            total += len(batch["input_ids"])
+    test_loss = total_loss / total
+    return test_loss
+
+
+def set_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--device', default='0', type=str, required=False, help='设置使用哪些显卡')
-    parser.add_argument('--no_cuda', default=False, type=bool, required=False, help='设置使用哪些显卡')
+    parser.add_argument('--device', default='0', type=str, help='设置训练或测试时使用的显卡')
+    parser.add_argument('--config_path', default='config/news_title_config.json', type=str, help='模型参数配置信息')
+    parser.add_argument('--vocab_path', default='vocab/vocab.txt', type=str, help='词表，该词表为小词表，并增加了一些新的标记')
+    parser.add_argument('--train_file_path', default='data/train_data.json', type=str, help='新闻标题生成的训练数据')
+    parser.add_argument('--test_file_path', default='data/test_data.json', type=str, help='新闻标题生成的测试数据')
 
-    parser.add_argument('--model_config', default='config/model_config_dialogue_small.json', type=str, required=False,
-                        help='选择模型参数')
-    parser.add_argument('--vocab_path', default='vocabulary/vocab_small.txt', type=str, required=False, help='选择词库')
-    parser.add_argument('--train_raw_path', default='data/train.txt', type=str, required=False, help='原始训练语料')
-    parser.add_argument('--train_tokenized_path', default='data/train_tokenized.txt', type=str,
-                        required=False,
-                        help='将原始训练语料tokenize之后的数据的存放位置')
-    parser.add_argument('--log_path', default='data/training.log', type=str, required=False, help='训练日志存放位置')
-    parser.add_argument('--raw', action='store_true', help='是否对原始训练语料做tokenize。若尚未对原始训练语料进行tokenize，则指定该参数')
-    parser.add_argument('--epochs', default=10, type=int, required=False, help='训练的轮次')
-    parser.add_argument('--batch_size', default=8, type=int, required=False, help='训练batch size')
-    parser.add_argument('--lr', default=1.5e-4, type=float, required=False, help='学习率')
-    parser.add_argument('--warmup_steps', default=2000, type=int, required=False, help='warm up步数')
-    parser.add_argument('--log_step', default=1, type=int, required=False, help='多少步汇报一次loss')
-    parser.add_argument('--gradient_accumulation', default=1, type=int, required=False, help='梯度积累')
+    parser.add_argument('--num_train_epochs', default=5, type=int, help='模型训练的轮数')
+    parser.add_argument('--train_batch_size', default=8, type=int, help='训练时每个batch的大小')
+    parser.add_argument('--test_batch_size', default=8, type=int, help='测试时每个batch的大小')
+    parser.add_argument('--lr', default=1.5e-4, type=float, help='模型训练时的学习率')
+    parser.add_argument('--warmup_proportion', default=0.1, type=float, help='warm up概率，即训练总步长的百分之多少，进行warm up')
+    parser.add_argument('--logging_steps', default=10, type=int, help='保存训练日志的步数')
+    parser.add_argument('--eval_steps', default=2000, type=int, help='训练时，多少步进行一次测试')
+    parser.add_argument('--gradient_accumulation', default=1, type=int, help='梯度积累')
     parser.add_argument('--max_grad_norm', default=1.0, type=float, required=False)
-    parser.add_argument('--dialogue_model_output_path', default='dialogue_model/', type=str, required=False,
-                        help='对话模型输出路径')
-    parser.add_argument('--pretrained_model', default='', type=str, required=False, help='预训练的GPT2模型的路径')
-    parser.add_argument('--writer_dir', default='tensorboard_summary/', type=str, required=False, help='Tensorboard路径')
-    parser.add_argument('--seed', type=int, default=None, help='设置种子用于生成随机数，以使得训练的结果是确定的')
-    parser.add_argument('--num_workers', type=int, default=1, help="dataloader加载数据时使用的线程数量")
-    parser.add_argument('--train_mmi', action='store_true', help="若指定该参数，则训练DialoGPT的MMI模型")
-    parser.add_argument('--train_mmi_tokenized_path', default='data/train_mmi_tokenized.txt', type=str,
-                        required=False,
-                        help='将原始训练语料的每段对话翻转，然后进行tokenize之后的数据的存放位置，用于训练MMI模型')
-    parser.add_argument('--mmi_model_output_path', default='mmi_model', type=str, required=False, help='MMI模型保存路径')
-    # parser.add_argument('--max_len', type=int, default=60, help='每个utterance的最大长度,超过指定长度则进行截断')
-    # parser.add_argument('--max_history_len', type=int, default=4, help="dialogue history的最大长度")
+    parser.add_argument('--output_dir', default='output_dir/', type=str, help='模型输出路径')
+    parser.add_argument('--seed', type=int, default=2020, help='随机种子')
+    parser.add_argument('--max_len', type=int, default=512, help='输入模型的最大长度，要比config中n_ctx小')
     return parser.parse_args()
 
 
-def set_random_seed(args):
-    """
-    设置训练的随机种子
-    """
-    torch.manual_seed(args.seed)
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-
-    if args.cuda:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-
-
-def create_logger(args):
-    """
-    将日志输出到日志文件和控制台
-    """
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-
-    formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s')
-
-    # 创建一个handler，用于写入日志文件
-    file_handler = logging.FileHandler(
-        filename=args.log_path)
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
-
-    # 创建一个handler，用于将日志输出到控制台
-    console = logging.StreamHandler()
-    console.setLevel(logging.DEBUG)
-    console.setFormatter(formatter)
-    logger.addHandler(console)
-
-    return logger
-
-
-def create_model(args, vocab_size):
-    """
-
-    :param args:
-    :param vocab_size:字典大小
-    :return:
-    """
-    if args.pretrained_model:  # 如果指定了预训练的GPT2模型
-        model = GPT2LMHeadModel.from_pretrained(args.pretrained_model)
-    else:  # 若没有指定预训练模型，则初始化模型
-        model_config = transformers.modeling_gpt2.GPT2Config.from_json_file(args.model_config)
-        model = GPT2LMHeadModel(config=model_config)
-    # 根据tokenizer的vocabulary调整GPT2模型的voca的大小
-    model.resize_token_embeddings(vocab_size)
-    logger.info('model config:\n{}'.format(model.config.to_json_string()))
-    return model, model.config.to_dict().get("n_ctx")
-
-
-
-
-def train(model, device, train_list, multi_gpu, args):
-    train_dataset = MyDataset(train_list)
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
-                                  collate_fn=collate_fn)
-    model.train()
-    # 计算所有epoch进行参数优化的总步数total_steps
-    total_steps = int(train_dataset.__len__() * args.epochs / args.batch_size / args.gradient_accumulation)
-    logger.info('total training steps = {}'.format(total_steps))
-
-    # 设置优化器，并且在初始训练时，使用warmup策略
-    optimizer = transformers.AdamW(model.parameters(), lr=args.lr, correct_bias=True)
-    scheduler = transformers.WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=total_steps)
-
-    logger.info('starting training')
-    # 用于统计每次梯度累计的loss
-    running_loss = 0
-    # 统计一共训练了多少个step
-    overall_step = 0
-    # 记录tensorboardX
-    tb_writer = SummaryWriter(log_dir=args.writer_dir)
-    # 记录 out of memory的次数
-    oom_time = 0
-    # 开始训练
-    for epoch in range(args.epochs):
-        epoch_start_time = datetime.now()
-        for batch_idx, input_ids in enumerate(train_dataloader):
-            # 注意：GPT2模型的forward()函数，是对于给定的context，生成一个token，而不是生成一串token
-            # GPT2Model的输入为n个token_id时，输出也是n个hidden_state，使用第n个hidden_state预测第n+1个token
-            input_ids = input_ids.to(device)
-            # 解决在运行过程中，由于显存不足产生的cuda out of memory的问题
-            try:
-                outputs = model.forward(input_ids=input_ids)
-                loss, accuracy = calculate_loss_and_accuracy(outputs, labels=input_ids, device=device)
-
-                if multi_gpu:
-                    loss = loss.mean()
-                    accuracy = accuracy.mean()
-                if args.gradient_accumulation > 1:
-                    loss = loss / args.gradient_accumulation
-                    accuracy = accuracy / args.gradient_accumulation
-                loss.backward()
-                # 梯度裁剪解决的是梯度消失或爆炸的问题，即设定阈值
-                torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-                # 进行一定step的梯度累计之后，更新参数
-                if (batch_idx + 1) % args.gradient_accumulation == 0:
-                    running_loss += loss.item()
-                    # 更新参数
-                    optimizer.step()
-                    # 清空梯度信息
-                    optimizer.zero_grad()
-                    # 进行warm up
-                    scheduler.step()
-                    overall_step += 1
-                    # 更新日志与tnesorboardX信息
-                    if (overall_step + 1) % args.log_step == 0:
-                        logger.info(
-                            "batch {} of epoch {}, loss {}, accuracy {}".format(batch_idx + 1, epoch + 1, loss,
-                                                                                accuracy))
-                        tb_writer.add_scalar('loss', loss.item(), overall_step)
-            except RuntimeError as exception:
-                if "out of memory" in str(exception):
-                    oom_time += 1
-                    logger.info("WARNING: ran out of memory,times: {}".format(oom_time))
-                    if hasattr(torch.cuda, 'empty_cache'):
-                        torch.cuda.empty_cache()
-                else:
-                    logger.info(str(exception))
-                    raise exception
-        logger.info('saving model for epoch {}'.format(epoch + 1))
-        if args.train_mmi:  # 当前训练MMI模型
-            model_path = join(args.mmi_model_output_path, 'model_epoch{}'.format(epoch + 1))
-        else:  # 当前训练对话模型
-            model_path = join(args.dialogue_model_output_path, 'model_epoch{}'.format(epoch + 1))
-        if not os.path.exists(model_path):
-            os.mkdir(model_path)
-        model_to_save = model.module if hasattr(model, 'module') else model
-        model_to_save.save_pretrained(model_path)
-        logger.info('epoch {} finished'.format(epoch + 1))
-        epoch_finish_time = datetime.now()
-        logger.info('time for one epoch: {}'.format(epoch_finish_time - epoch_start_time))
-    logger.info('training finished')
-
-
-def evaluate(model, device, test_list, multi_gpu, args):
-    logger.info("start evaluating model")
-    model.eval()
-    logger.info('starting evaluating')
-    # 记录tensorboardX
-    tb_writer = SummaryWriter(log_dir=args.writer_dir)
-    test_dataset = MyDataset(test_list)
-    test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
-                                 collate_fn=collate_fn)
-    with torch.no_grad():
-        for batch_idx, input_ids in enumerate(test_dataloader):
-            input_ids.to(device)
-            outputs = model.forward(input_ids=input_ids)
-            loss, accuracy = calculate_loss_and_accuracy(outputs, labels=input_ids, device=device)
-
-            if multi_gpu:
-                loss = loss.mean()
-                accuracy = accuracy.mean()
-            if args.gradient_accumulation > 1:
-                loss = loss / args.gradient_accumulation
-                accuracy = accuracy / args.gradient_accumulation
-            logger.info("evaluate batch {} ,loss {} ,accuracy {}".format(batch_idx, loss, accuracy))
-            # tb_writer.add_scalar('loss', loss.item(), overall_step)
-        logger.info("finishing evaluating")
-
-
 def main():
+    args = set_args()
 
-    args = setup_train_args()
-    # 日志同时输出到文件和console
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICE"] = args.device
     # 当用户使用GPU,并且GPU可用时
@@ -259,58 +147,17 @@ def main():
     model_config = GPT2Config.from_json_file(args.config_path)
     model = GPT2LMHeadModel(config=model_config)
     tokenizer = BertTokenizer.from_pretrained(args.vocab_path)
-
-
-
-    # 初始化tokenizer
-    tokenizer = BertTokenizer(vocab_file=args.vocab_path)
-    # tokenizer的字典大小
-    vocab_size = len(tokenizer)
-
-    global pad_id
-    pad_id = tokenizer.convert_tokens_to_ids(PAD)
-
-    # 创建对话模型的输出目录
-    if not os.path.exists(args.dialogue_model_output_path):
-        os.mkdir(args.dialogue_model_output_path)
-    # 创建MMI模型的输出目录
-    if not os.path.exists(args.mmi_model_output_path):
-        os.mkdir(args.mmi_model_output_path)
-    # 加载GPT2模型
-    model, n_ctx = create_model(args, vocab_size)
-    model.to(device)
-    # 对原始数据进行预处理,将原始语料转换成对应的token_id
-    if args.raw and args.train_mmi:  # 如果当前是要训练MMI模型
-        preprocess_mmi_raw_data(args, tokenizer, n_ctx)
-    elif args.raw and not args.train_mmi:  # 如果当前是要训练对话生成模型
-        preprocess_raw_data(args, tokenizer, n_ctx)
-    # 是否使用多块GPU进行并行运算
-    multi_gpu = False
-    if args.cuda and torch.cuda.device_count() > 1:
-        logger.info("Let's use GPUs to train")
-        model = DataParallel(model, device_ids=[int(i) for i in args.device.split(',')])
-        multi_gpu = True
-    # 记录模型参数数量
-    num_parameters = 0
-    parameters = model.parameters()
-    for parameter in parameters:
-        num_parameters += parameter.numel()
-    logger.info('number of model parameters: {}'.format(num_parameters))
-
+    # 将[space]作为一个分割整体，例如："我爱[Space]中国。"，使用原始tokenizer分词结果为"['我', '爱', '[', 'Space', ']', '中', '国', '。']";
+    # 增加分割符号后的结果为"['我', '爱', '[Space]', '中', '国', '。']"
+    tokenizer.add_tokens("[Space]", special_tokens=True)
+    # 创建模型的输出目录
+    if not os.path.exists(args.output_dir):
+        os.mkdir(args.output_dir)
     # 加载数据
-    logger.info("loading traing data")
-    if args.train_mmi:  # 如果是训练MMI模型
-        with open(args.train_mmi_tokenized_path, "r", encoding="utf8") as f:
-            data = f.read()
-    else:  # 如果是训练对话生成模型
-        with open(args.train_tokenized_path, "r", encoding="utf8") as f:
-            data = f.read()
-    data_list = data.split("\n")
-    train_list, test_list = train_test_split(data_list, test_size=0.2, random_state=1)
+    train_data = GPT2NewsTitleDataSet(tokenizer, args.max_len, args.data_dir, "train", args.train_file_path)
+    test_data = GPT2NewsTitleDataSet(tokenizer, args.max_len, args.data_dir, "test", args.test_file_path)
     # 开始训练
-    train(model, device, train_list, multi_gpu, args)
-    # 测试模型
-    evaluate(model, device, test_list, multi_gpu, args)
+    train(model, device, train_data, test_data, args)
 
 
 if __name__ == '__main__':
