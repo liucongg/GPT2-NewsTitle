@@ -118,6 +118,8 @@ def train(model, device, train_data, test_data, args):
         output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
         model_to_save = model.module if hasattr(model, "module") else model
         model_to_save.save_pretrained(output_dir)
+        # 清空cuda缓存
+        torch.cuda.empty_cache()
 
 
 def evaluate(model, device, test_data, args):
@@ -170,13 +172,13 @@ def set_args():
     parser.add_argument('--num_train_epochs', default=5, type=int, help='模型训练的轮数')
     parser.add_argument('--train_batch_size', default=16, type=int, help='训练时每个batch的大小')
     parser.add_argument('--test_batch_size', default=8, type=int, help='测试时每个batch的大小')
-    parser.add_argument('--learning_rate', default=1.5e-4, type=float, help='模型训练时的学习率')
+    parser.add_argument('--learning_rate', default=1e-4, type=float, help='模型训练时的学习率')
     parser.add_argument('--warmup_proportion', default=0.1, type=float, help='warm up概率，即训练总步长的百分之多少，进行warm up')
     parser.add_argument('--adam_epsilon', default=1e-8, type=float, help='Adam优化器的epsilon值')
     parser.add_argument('--logging_steps', default=20, type=int, help='保存训练日志的步数')
     parser.add_argument('--eval_steps', default=4000, type=int, help='训练时，多少步进行一次测试')
     parser.add_argument('--gradient_accumulation_steps', default=4, type=int, help='梯度积累')
-    parser.add_argument('--max_grad_norm', default=1.0, type=float, required=False)
+    parser.add_argument('--max_grad_norm', default=1.0, type=float, help='')
     parser.add_argument('--output_dir', default='output_dir/', type=str, help='模型输出路径')
     parser.add_argument('--seed', type=int, default=2020, help='随机种子')
     parser.add_argument('--max_len', type=int, default=512, help='输入模型的最大长度，要比config中n_ctx小')
