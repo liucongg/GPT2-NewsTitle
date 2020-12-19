@@ -118,8 +118,8 @@ def build_news_data(content_path, title_path, train_save_path, test_save_path):
 
 
 if __name__ == '__main__':
-    content_path_dir = "F:\\自然语言处理项目\\yunwen_github\\Unilm\\新闻标题数据集\\新闻标题数据集\\train_text.txt"
-    title_path_dir = "F:\\自然语言处理项目\\yunwen_github\\Unilm\\新闻标题数据集\\新闻标题数据集\\train_label.txt"
-    train_save_path_dir = "train_data.json"
-    test_save_path_dir = "test_data.json"
+    content_path_dir = "./data_dir/train_text.txt"
+    title_path_dir = "./data_dir/train_label.txt"
+    train_save_path_dir = "./data_dir/train_data.json"
+    test_save_path_dir = "./data_dir/test_data.json"
     build_news_data(content_path_dir, title_path_dir, train_save_path_dir, test_save_path_dir)
