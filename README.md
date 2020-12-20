@@ -8,7 +8,7 @@
 * 本项目通过Flask框架搭建了一个Web服务，将新闻摘要生成模型进行工程化，可以通过页面可视化地体验新闻摘要生成效果。
 * 本项目的代码详细讲解，可以自行阅读代码，也可查看[代码注释介绍]()。
 * 本项目提供的新闻摘要模型是一个6层的小模型（其实是穷人没人卡，只能训练小模型），并且在训练该模型过程中，没有加载预训练的GPT2模型而是随机初始化的参数，并且训练轮数较少（5轮，还没收敛完），因此效果一般。如果想要更好效果的模型，可以按照个人需求训练一个模型。
-* 本项目的本质是带领大家走一遍训练、测试及部署GPT2生成模型的流程。
+* 本项目的目的是带领大家走一遍GPT2生成模型的训练、测试及部署全部流程。
 
 ## 文件结构
 * config
@@ -54,6 +54,7 @@
 | n_layer  | 6  |
 | n_positions | 512 |
 | vocab_size  | 13317  |
+
 注意：模型输入除了各个词的向量表示外，还包括文字段落向量表示和位置向量表示。
 ![](image/input.png)
 
@@ -92,12 +93,14 @@ python3 train.py --output_dir output_dir/(自定义保存模型路径)
 | output_dir | str  | "output_dir/" | 模型输出路径 |
 | seed | int  | 2020 | 随机种子 |
 | max_len | int  | 512 | 输入模型的最大长度，要比config中n_ctx小 |
+
 或者修改train.py文件中的set_args函数内容，可修改默认值。
 
 本项目提供的模型，共训练了5个epoch，模型训练损失和测试集损失分别如下：
 ![](image/train_loss.png)
 
 ![](image/test_loss.png)
+
 模型其实还没有训练完全，按照loss走势，还可以继续训练。
 ## 模型测试
 ```
@@ -118,6 +121,7 @@ python3 generate_title.py --top_k 3 --top_p 0.9999 --generate_max_len 32
 | top_k | int  | 8 | 解码时保留概率最高的多少个标记 |
 | top_p | float  | 0.95 | 解码时保留概率累加大于多少的标记 |
 | max_len | int  | 512 | 输入模型的最大长度，要比config中n_ctx小 |
+
 测试结果如下：
 ```
 从测试集中抽一篇
@@ -166,7 +170,7 @@ python3 http_server.py --http_id "0.0.0.0" --port 5555
 * [CDial-GPT](https://github.com/thu-coai/CDial-GPT)
 * [GPT2](https://github.com/ConnorJL/GPT2)
 * [transformers](https://github.com/huggingface/transformers)
-* 
+
 ## 联系作者
 e-mail：logcongcong@gmail.com
 
