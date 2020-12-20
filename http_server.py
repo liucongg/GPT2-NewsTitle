@@ -60,8 +60,9 @@ def start_sever():
         if request.method == 'POST':
             content = request.form.get('content')
             titles = predict_one_sample(model, tokenizer, device, args, content)
-            title_str = "\n".join(titles)
-
+            title_str = ""
+            for i, t in enumerate(titles):
+                title_str += "生成的第{}个标题为：{}\n".format(i+1, t)
             return render_template("index_ok.html", content=content, titles=title_str)
         return render_template("index.html")
     server = wsgi.WSGIServer((str(args.http_id), args.port), app)

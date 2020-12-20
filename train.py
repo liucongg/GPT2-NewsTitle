@@ -204,8 +204,8 @@ def main():
     # 实例化GPT2LMHeadModel模型，这里我们没有加载预训练好的模型，而是直接从头开始训练。
     # 为什么从头开始训练？我们采用的是小模型，只有6层，并且词表也做了修改，没有找到合适的预训练模型。（其实是，穷人，卡不行。）
     # 判断是否使用预训练好的GPT2模型
-    if args.pretrained_model:
-        model = GPT2LMHeadModel.from_pretrained(args.pretrained_model)
+    if args.pretrained_model_path:
+        model = GPT2LMHeadModel.from_pretrained(args.pretrained_model_path)
     else:
         # 如果没有指定的预训练模型，则初始化模型
         model = GPT2LMHeadModel(config=model_config)

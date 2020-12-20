@@ -28,8 +28,8 @@ def clean_weibo_title(title: str):
     Returns:
 
     """
-    # 去除##中间的文字（一般为微博数据的话题）
-    title = re.sub(r"(#{1,2})(.*?)(#{1,2})", "", title)
+    # 去除##符号（一般为微博数据的话题标记）
+    title = re.sub(r"#", "", title)
     # 去除[]中间的文字（一般为微博数据中的表情）
     title = re.sub(r"(\[{1,2})(.*?)(\]{1,2})", "", title)
     # 合并标题中过多的空格
@@ -96,11 +96,11 @@ def build_news_data(content_path, title_path, train_save_path, test_save_path):
                          desc="build data"
                          )
                     )
-    # 对数据进行过滤，去除重复数据和正文内容字长小于100的数据
+    # 对数据进行过滤，去除重复数据、正文内容字长小于100的数据和标题内容字长小于100的数据
     data_set = set()
     data_new = []
     for d in data:
-        if d["content"] in data_set or len(d["content"]) < 100:
+        if d["content"] in data_set or len(d["content"]) < 100 or len(d["title"]) < 2:
             continue
         else:
             data_set.add(d["content"])
@@ -118,8 +118,8 @@ def build_news_data(content_path, title_path, train_save_path, test_save_path):
 
 
 if __name__ == '__main__':
-    content_path_dir = "./data_dir/train_text.txt"
-    title_path_dir = "./data_dir/train_label.txt"
-    train_save_path_dir = "./data_dir/train_data.json"
-    test_save_path_dir = "./data_dir/test_data.json"
+    content_path_dir = "data_dir/train_text.txt"
+    title_path_dir = "data_dir/train_label.txt"
+    train_save_path_dir = "data_dir/train_data.json"
+    test_save_path_dir = "data_dir/test_data.json"
     build_news_data(content_path_dir, title_path_dir, train_save_path_dir, test_save_path_dir)
