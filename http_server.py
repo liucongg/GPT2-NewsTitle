@@ -24,14 +24,14 @@ import os
 def set_args():
     """设置所需参数"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--device', default='-1', type=str, help='设置预测时使用的显卡')
-    parser.add_argument('--output_dir', default='output_dir/checkpoint-55922', type=str, help='模型输出路径')
+    parser.add_argument('--device', default='0', type=str, help='设置预测时使用的显卡,使用CPU设置成-1即可')
+    parser.add_argument('--output_dir', default='output_dir/checkpoint-139805', type=str, help='模型文件路径')
     parser.add_argument('--vocab_path', default='vocab/vocab.txt', type=str, help='词表，该词表为小词表，并增加了一些新的标记')
-    parser.add_argument('--batch_size', default=5, type=int, help='生成标题的个数')
+    parser.add_argument('--batch_size', default=3, type=int, help='生成标题的个数')
     parser.add_argument('--generate_max_len', default=32, type=int, help='生成标题的最大长度')
     parser.add_argument('--repetition_penalty', default=1.2, type=float, help='重复处罚率')
-    parser.add_argument('--top_k', default=3, type=float, help='解码时保留概率最高的多少个标记')
-    parser.add_argument('--top_p', default=0.999, type=float, help='解码时保留概率累加大于多少的标记')
+    parser.add_argument('--top_k', default=8, type=float, help='解码时保留概率最高的多少个标记')
+    parser.add_argument('--top_p', default=0.95, type=float, help='解码时保留概率累加大于多少的标记')
     parser.add_argument('--max_len', type=int, default=512, help='输入模型的最大长度，要比config中n_ctx小')
     parser.add_argument('--http_id', type=str, default="0.0.0.0", help='ip地址')
     parser.add_argument('--port', type=int, default=5555, help='端口号')
@@ -60,9 +60,10 @@ def start_sever():
         if request.method == 'POST':
             content = request.form.get('content')
             titles = predict_one_sample(model, tokenizer, device, args, content)
-            titles = "\n".join(titles)
-            return render_template("upload_ok.html", content=content, titles=titles)
-        return render_template("upload.html")
+            title_str = "\n".join(titles)
+
+            return render_template("index_ok.html", content=content, titles=title_str)
+        return render_template("index.html")
     server = wsgi.WSGIServer((str(args.http_id), args.port), app)
     server.serve_forever()
 

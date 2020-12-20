@@ -80,7 +80,7 @@ def train(model, device, train_data, test_data, args):
     tr_loss, logging_loss, min_loss = 0.0, 0.0, 0.0
     global_step = 0
     # 开始训练模型
-    for iepoch in trange(0, int(args.num_train_epochs) + 1, desc="Epoch", disable=False):
+    for iepoch in trange(0, int(args.num_train_epochs), desc="Epoch", disable=False):
         iter_bar = tqdm(train_data_loader, desc="Iter (loss=X.XXX)", disable=False)
         for step, batch in enumerate(iter_bar):
             input_ids = batch["input_ids"].to(device)
@@ -168,6 +168,7 @@ def set_args():
     parser.add_argument('--vocab_path', default='./vocab/vocab.txt', type=str, help='词表，该词表为小词表，并增加了一些新的标记')
     parser.add_argument('--train_file_path', default='./data_dir/train_data.json', type=str, help='新闻标题生成的训练数据')
     parser.add_argument('--test_file_path', default='./data_dir/test_data.json', type=str, help='新闻标题生成的测试数据')
+    parser.add_argument('--pretrained_model_path', default=None, type=str, help='预训练的GPT2模型的路径')
     parser.add_argument('--data_dir', default='./data_dir', type=str, help='生成缓存数据的存放路径')
     parser.add_argument('--num_train_epochs', default=5, type=int, help='模型训练的轮数')
     parser.add_argument('--train_batch_size', default=16, type=int, help='训练时每个batch的大小')
@@ -201,8 +202,14 @@ def main():
     # 加载模型的config
     model_config = GPT2Config.from_json_file(args.config_path)
     # 实例化GPT2LMHeadModel模型，这里我们没有加载预训练好的模型，而是直接从头开始训练。
-    # 为什么从头开始训练？第一点：我们采用的是小模型，只有6层，并且词表也做了修改，没有找到合适的预训练模型；第二点：训练数据有40多万，觉得数据量足够了。
-    model = GPT2LMHeadModel(config=model_config)
+    # 为什么从头开始训练？我们采用的是小模型，只有6层，并且词表也做了修改，没有找到合适的预训练模型。（其实是，穷人，卡不行。）
+    # 判断是否使用预训练好的GPT2模型
+    if args.pretrained_model:
+        model = GPT2LMHeadModel.from_pretrained(args.pretrained_model)
+    else:
+        # 如果没有指定的预训练模型，则初始化模型
+        model = GPT2LMHeadModel(config=model_config)
+    # model = GPT2LMHeadModel(config=model_config)
     # 实例化tokenizer
     tokenizer = BertTokenizer.from_pretrained(args.vocab_path, do_lower_case=True)
     # 将[space]作为一个分割整体，例如："我爱[Space]中国。"，使用原始tokenizer分词结果为"['我', '爱', '[', 'Space', ']', '中', '国', '。']";
