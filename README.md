@@ -6,7 +6,7 @@
 * 本项目参考了[GPT2-Chinese](https://github.com/Morizeyao/GPT2-Chinese)、[GPT2-chitchat](https://github.com/yangjianxin1/GPT2-chitchat)、[CDial-GPT](https://github.com/thu-coai/CDial-GPT)、[GPT2](https://github.com/ConnorJL/GPT2)等多个GPT2开源项目，并根据自己的理解，将代码进行重构，添加详细注释，希望可以帮助到有需要的人。
 * 本项目使用HuggingFace的[transformers](https://github.com/huggingface/transformers)实现GPT2模型代码编写、训练及测试。
 * 本项目通过Flask框架搭建了一个Web服务，将新闻摘要生成模型进行工程化，可以通过页面可视化地体验新闻摘要生成效果。
-* 本项目的代码详细讲解，可以自行阅读代码，也可查看[代码注释介绍]()。
+* 本项目的代码详细讲解，可以自行阅读代码，也可查看[代码注释介绍](https://zhuanlan.zhihu.com/p/338171330)。
 * 本项目提供的新闻摘要模型是一个6层的小模型（其实是穷人没人卡，只能训练小模型），并且在训练该模型过程中，没有加载预训练的GPT2模型而是随机初始化的参数，并且训练轮数较少（5轮，还没收敛完），因此效果一般。如果想要更好效果的模型，可以按照个人需求训练一个模型。
 * 本项目的目的是带领大家走一遍GPT2生成模型的训练、测试及部署全部流程。
 
