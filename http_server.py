@@ -25,7 +25,7 @@ def set_args():
     """设置所需参数"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', default='0', type=str, help='设置预测时使用的显卡,使用CPU设置成-1即可')
-    parser.add_argument('--output_dir', default='output_dir/checkpoint-139805', type=str, help='模型文件路径')
+    parser.add_argument('--output_dir', default='output_dir/checkpoint-111844', type=str, help='模型文件路径')
     parser.add_argument('--vocab_path', default='vocab/vocab.txt', type=str, help='词表，该词表为小词表，并增加了一些新的标记')
     parser.add_argument('--batch_size', default=3, type=int, help='生成标题的个数')
     parser.add_argument('--generate_max_len', default=32, type=int, help='生成标题的最大长度')
