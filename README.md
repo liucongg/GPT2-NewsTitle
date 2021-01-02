@@ -1,6 +1,27 @@
 # GPT2-NewsTitle
 带有超详细注释的GPT2新闻标题生成项目
 
+## UpDate 01.02.2021
+* 从网上收集数据，将清华新闻数据、搜狗新闻数据等新闻数据集，以及开源的一些摘要数据进行整理清洗，构建一个较完善的中文摘要数据集。
+* 数据集清洗时，仅进行了简单地规则清洗。例如：清洗htlm标记、去除多余空字符、去除图片标记等。
+* 处理后数据集详细信息，见[数据集描述]()
+
+| 数据   | 原始数据/项目地址   |  处理后文件下载地址 |
+| ------  | ------ | ------  |
+| 清华新闻数据 | [地址](http://thuctc.thunlp.org/)  | [百度云盘](https://pan.baidu.com/s/1a-CUtTc5xQFB9_EJaxDklA) 提取码： vhol |
+| 搜狗新闻数据 | [地址](https://www.sogou.com/labs/resource/cs.php)  | [百度云盘](https://pan.baidu.com/s/1vgfa5gnIHTYpoYptuHo6gQ) 提取码：ode6 |
+| nlpcc2017摘要数据 | [地址](http://tcci.ccf.org.cn/conference/2017/taskdata.php)  | [百度云盘](https://pan.baidu.com/s/1v7QFJ3hl_ALb2DEEq0umRQ) 提取码：e0zq  |
+| csl摘要数据 | [地址](https://github.com/P01son6415/CSL)  | [百度云盘](https://pan.baidu.com/s/1qrzhsWq8SGQ1-W8VizSY9w) 提取码：0qot  | 
+| 教育培训行业摘要数据 | [地址](https://github.com/wonderfulsuccess/chinese_abstractive_corpus)  | [百度云盘](https://pan.baidu.com/s/1sjOkp8LKGVmY6h0QXl5m7g) 提取码：kjz3  | 
+| lcsts摘要数据 | [地址](http://icrc.hitsz.edu.cn/Article/show/139.html)  | [百度云盘](https://pan.baidu.com/s/1J2NcMfxpGGG_BG1Wx0lHGA) 提取码：bzov | 
+| 神策杯2018摘要数据 | [地址](https://js.dclab.run/v2/cmptDetail.html?id=242)  | [百度云盘](https://pan.baidu.com/s/1WFimCGk6y-nfSdPRbCrV8Q) 提取码：6f4f | 
+| 万方摘要数据 | [地址](https://github.com/EachenKuang/wanfangSpider)  | [百度云盘](https://pan.baidu.com/s/1RFNFagKnxf2JKnjwBDecPA) 提取码： p69g| 
+| 微信公众号摘要数据 | [地址](https://github.com/nonamestreet/weixin_public_corpus)  | [百度云盘](https://pan.baidu.com/s/1OBn8kyZEsUeiV_kw4OJYnQ) 提取码： 5has| 
+| 微博数据 | [地址](https://www.jianshu.com/p/8f52352f0748?tdsourcetag=s_pcqq_aiomsg)  | [百度云盘](https://pan.baidu.com/s/1-OxrZRm_Q7ejfU-mtngBWg) 提取码： 85t5|
+| news2016zh新闻数据 | [地址](https://github.com/brightmart/nlp_chinese_corpus)  | [百度云盘]() 提取码： |  
+
+
+
 ## 项目描述
 * 本项目是一个带有超级详细中文注释的基于GPT2模型的新闻标题生成项目。
 * 本项目参考了[GPT2-Chinese](https://github.com/Morizeyao/GPT2-Chinese)、[GPT2-chitchat](https://github.com/yangjianxin1/GPT2-chitchat)、[CDial-GPT](https://github.com/thu-coai/CDial-GPT)、[GPT2](https://github.com/ConnorJL/GPT2)等多个GPT2开源项目，并根据自己的理解，将代码进行重构，添加详细注释，希望可以帮助到有需要的人。
@@ -156,7 +177,7 @@ python3 http_server.py --http_id "0.0.0.0" --port 5555
 ![](image/server_image2.png)
 
 ## 未来工作
-- [ ] 后期可能会将清华新闻数据、搜狗新闻数据等新闻数据集进行整理清洗，构建一个较完善的新闻标题数据集。
+- [x] 后期可能会将清华新闻数据、搜狗新闻数据等新闻数据集进行整理清洗，构建一个较完善的新闻标题数据集。
 - [ ] 后期可能会使用新闻数据训练一个小的GPT2预训练模型。
 - [ ] 后期可能会对已上传的新闻标题模型进行更新，训练一个效果较好的模型。
 
@@ -174,4 +195,5 @@ python3 http_server.py --http_id "0.0.0.0" --port 5555
 ## 联系作者
 e-mail：logcongcong@gmail.com
 
-知乎：[刘聪NLP](https://www.zhihu.com/people/LiuCongNLP)
+知乎：[刘聪NLP](https://www.zhihu.com/people/LiuCongNLP)、公众号：[NLP工作站]
+![](image/logcong.png)
