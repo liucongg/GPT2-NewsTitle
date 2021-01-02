@@ -18,7 +18,7 @@
 | 万方摘要数据 | [地址](https://github.com/EachenKuang/wanfangSpider)  | [百度云盘](https://pan.baidu.com/s/1RFNFagKnxf2JKnjwBDecPA) 提取码： p69g| 
 | 微信公众号摘要数据 | [地址](https://github.com/nonamestreet/weixin_public_corpus)  | [百度云盘](https://pan.baidu.com/s/1OBn8kyZEsUeiV_kw4OJYnQ) 提取码： 5has| 
 | 微博数据 | [地址](https://www.jianshu.com/p/8f52352f0748?tdsourcetag=s_pcqq_aiomsg)  | [百度云盘](https://pan.baidu.com/s/1-OxrZRm_Q7ejfU-mtngBWg) 提取码： 85t5|
-| news2016zh新闻数据 | [地址](https://github.com/brightmart/nlp_chinese_corpus)  | [百度云盘]() 提取码： |  
+| news2016zh新闻数据 | [地址](https://github.com/brightmart/nlp_chinese_corpus)  | [百度云盘](https://pan.baidu.com/s/1S3YhetbEZuSfYbfSLeRfSg) 提取码： qsj1 |  
 
 
 
@@ -195,5 +195,8 @@ python3 http_server.py --http_id "0.0.0.0" --port 5555
 ## 联系作者
 e-mail：logcongcong@gmail.com
 
-知乎：[刘聪NLP](https://www.zhihu.com/people/LiuCongNLP)、公众号：[NLP工作站]
+知乎：[刘聪NLP](https://www.zhihu.com/people/LiuCongNLP)
+
+公众号：[NLP工作站]
+
 ![](image/logcong.png)
