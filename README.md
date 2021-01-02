@@ -20,7 +20,7 @@
 | 微博数据 | [地址](https://www.jianshu.com/p/8f52352f0748?tdsourcetag=s_pcqq_aiomsg)  | [百度云盘](https://pan.baidu.com/s/1-OxrZRm_Q7ejfU-mtngBWg) 提取码： 85t5|
 | news2016zh新闻数据 | [地址](https://github.com/brightmart/nlp_chinese_corpus)  | [百度云盘](https://pan.baidu.com/s/1S3YhetbEZuSfYbfSLeRfSg) 提取码： qsj1 |  
 
-
+数据集集合：[百度云盘](https://pan.baidu.com/s/1ibPTRTgXn8FfVf6DgVFWfA) 提取码： 7am8 
 
 ## 项目描述
 * 本项目是一个带有超级详细中文注释的基于GPT2模型的新闻标题生成项目。
@@ -197,6 +197,6 @@ e-mail：logcongcong@gmail.com
 
 知乎：[刘聪NLP](https://www.zhihu.com/people/LiuCongNLP)
 
-公众号：[NLP工作站]
+公众号：[NLP工作站]()
 
 ![](image/logcong.png)
