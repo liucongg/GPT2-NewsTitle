@@ -192,6 +192,18 @@ python3 http_server.py --http_id "0.0.0.0" --port 5555
 * [GPT2](https://github.com/ConnorJL/GPT2)
 * [transformers](https://github.com/huggingface/transformers)
 
+## Citing
+```
+@misc{GPT2-NewsTitle,
+  author = {Cong Liu},
+  title = {Chinese NewsTitle Generation Project by GPT2},
+  year = {2020},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  url="https://github.com/liucongg/GPT2-NewsTitle",
+}
+```
+
 ## 联系作者
 e-mail：logcongcong@gmail.com
 
