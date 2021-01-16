@@ -183,6 +183,7 @@ def set_args():
     parser.add_argument('--output_dir', default='output_dir/', type=str, help='模型输出路径')
     parser.add_argument('--seed', type=int, default=2020, help='随机种子')
     parser.add_argument('--max_len', type=int, default=512, help='输入模型的最大长度，要比config中n_ctx小')
+    parser.add_argument('--title_max_len', type=int, default=32, help='生成标题的最大长度，要比max_len小')
     return parser.parse_args()
 
 
@@ -219,8 +220,8 @@ def main():
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
     # 加载训练数据和测试数据
-    train_data = GPT2NewsTitleDataSet(tokenizer, args.max_len, args.data_dir, "train", args.train_file_path)
-    test_data = GPT2NewsTitleDataSet(tokenizer, args.max_len, args.data_dir, "test", args.test_file_path)
+    train_data = GPT2NewsTitleDataSet(tokenizer, args.max_len, args.title_max_len, args.data_dir, "train", args.train_file_path)
+    test_data = GPT2NewsTitleDataSet(tokenizer, args.max_len, args.title_max_len, args.data_dir, "test", args.test_file_path)
     # 开始训练
     train(model, device, train_data, test_data, args)
 

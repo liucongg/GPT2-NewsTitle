@@ -22,12 +22,13 @@ logger = logging.getLogger(__name__)
 
 class GPT2NewsTitleDataSet(Dataset):
     """新闻标题生成模型所需要的数据类"""
-    def __init__(self, tokenizer, max_len, data_dir, data_set_name, path_file=None, is_overwrite=False):
+    def __init__(self, tokenizer, max_len, title_max_len, data_dir, data_set_name, path_file=None, is_overwrite=False):
         """
         初始化函数
         Args:
             tokenizer: 分词器
             max_len: 数据的最大长度
+            title_max_len: 生成标题的最大长度
             data_dir: 保存缓存文件的路径
             data_set_name: 数据集名字
             path_file: 原始数据文件
@@ -41,6 +42,7 @@ class GPT2NewsTitleDataSet(Dataset):
         # 但是又不方便同一替换成任意一个标点，因此将其用[Space]替换。
         self.space_id = self.tokenizer.convert_tokens_to_ids("[Space]")
         self.max_len = max_len
+        self.title_max_len = title_max_len
         cached_feature_file = os.path.join(data_dir, "cached_{}_{}".format(data_set_name, max_len))
         # 判断缓存文件是否存在，如果存在，则直接加载处理后数据
         if os.path.exists(cached_feature_file) and not is_overwrite:
@@ -86,6 +88,9 @@ class GPT2NewsTitleDataSet(Dataset):
         content_tokens = self.tokenizer.tokenize(sample["content"])
         # 对新闻标题进行tokenizer.tokenize分词，注意tokenizer中已经将[Space]作为一个分隔符，不会切割成多个字符
         title_tokens = self.tokenizer.tokenize(sample["title"].replace(" ", "[Space]"))
+        # 判断如果标题过长，进行截断
+        if len(title_tokens) > self.title_max_len:
+            title_tokens = title_tokens[:self.title_max_len]
         # 判断如果正文过长，进行截断
         if len(content_tokens) > self.max_len - len(title_tokens) - 3:
             content_tokens = content_tokens[:self.max_len - len(title_tokens) - 3]
@@ -128,19 +133,14 @@ def collate_func(batch_data):
     if batch_size == 0:
         return {}
     input_ids_list, token_type_ids_list = [], []
-    # 获取一个batch数据中的最大长度
-    max_len = max([len(instance["input_ids"]) for instance in batch_data])
     for instance in batch_data:
         # 按照batch中的最大数据长度,对数据进行padding填充
         input_ids_temp = instance["input_ids"]
-        input_ids_temp.extend([0]*(max_len-len(instance["input_ids"])))
         token_type_ids_temp = instance["token_type_ids"]
-        token_type_ids_temp.extend([0] * (max_len - len(instance["token_type_ids"])))
-        # 将list数据转换为tensor数据
-        # input_ids_list.append(torch.from_numpy(np.array(input_ids_temp, dtype=np.int32)).long())
-        # token_type_ids_list.append(torch.from_numpy(np.array(token_type_ids_temp, dtype=np.int32)).long())
+        # 将input_ids_temp和token_type_ids_temp添加到对应的list中
         input_ids_list.append(torch.tensor(input_ids_temp, dtype=torch.long))
         token_type_ids_list.append(torch.tensor(token_type_ids_temp, dtype=torch.long))
+    # 使用pad_sequence函数，会将list中所有的tensor进行长度补全，补全到一个batch数据中的最大长度，补全元素为padding_value
     return {"input_ids": pad_sequence(input_ids_list, batch_first=True, padding_value=0),
             "token_type_ids": pad_sequence(token_type_ids_list, batch_first=True, padding_value=0)}
 
