@@ -7,6 +7,8 @@
 运行代码
 ```
 streamlit run app.py
+or
+streamlit run app.py --server.port your_port
 ```
 具体如下图所示：
 
