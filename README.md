@@ -1,5 +1,18 @@
 # GPT2-NewsTitle
 带有超详细注释的GPT2新闻标题生成项目
+## UpDate 02.19.2022
+* 增加Streamlit页面，无需使用Flask+HTML就可以部署一个精美页面。
+* 详细说明文档，见[]()
+
+运行代码
+```
+streamlit run app.py
+```
+具体如下图所示：
+
+![](image/streamlit_1.png)
+
+![](image/streamlit_2.png)
 
 ## UpDate 01.02.2021
 * 从网上收集数据，将清华新闻数据、搜狗新闻数据等新闻数据集，以及开源的一些摘要数据进行整理清洗，构建一个较完善的中文摘要数据集。
