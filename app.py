@@ -20,7 +20,7 @@ from generate_title import predict_one_sample
 st.set_page_config(page_title="Demo", initial_sidebar_state="auto", layout="wide")
 
 
-@st.cache()
+@st.cache(allow_output_mutation=True)
 def get_model(device, vocab_path, model_path):
     tokenizer = BertTokenizer.from_pretrained(vocab_path, do_lower_case=True)
     model = GPT2LMHeadModel.from_pretrained(model_path)
@@ -33,7 +33,7 @@ device_ids = 0
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICE"] = str(device_ids)
 device = torch.device("cuda" if torch.cuda.is_available() and int(device_ids) >= 0 else "cpu")
-tokenizer, model = get_model(device, "vocab/vocab.txt", "output_dir/checkpoint-111844")
+tokenizer, model = get_model(device, "vocab/vocab.txt", "output_dir/checkpoint-139805")
 
 
 def writer():
